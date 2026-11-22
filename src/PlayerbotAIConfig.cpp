@@ -698,6 +698,8 @@ bool PlayerbotAIConfig::Initialize()
     AutoGearBisCommand = sConfigMgr->GetOption<int32>("Playerbots.AutoGearBisCommand", 0);
     AutoGearQualityLimit = sConfigMgr->GetOption<int32>("Playerbots.AutoGearQualityLimit", 3);
     AutoGearScoreLimit = sConfigMgr->GetOption<int32>("Playerbots.AutoGearScoreLimit", 0);
+    AutoGearMatchOnly = sConfigMgr->GetOption<bool>("Playerbots.AutoGearMatchOnly", false);
+    AutoGearMatchQuality = sConfigMgr->GetOption<bool>("Playerbots.AutoGearMatchQuality", false);
 
     RandomBotXPRate = sConfigMgr->GetOption<float>("Playerbots.RandomBotXPRate", 1.0);
     RandomBotAllianceRatio = sConfigMgr->GetOption<int32>("Playerbots.RandomBotAllianceRatio", 50);

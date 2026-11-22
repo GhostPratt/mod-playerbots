@@ -455,6 +455,7 @@ public:
             AltMaintenanceGemsEnchants;
     int32 AutoGearCommand, AutoGearCommandAltBots, AutoGearQualityLimit, AutoGearScoreLimit;
     int32 AutoGearBisCommand;
+    bool AutoGearMatchOnly, AutoGearMatchQuality;
 
     uint32 UseGroundMountAtMinLevel;
     uint32 UseFastGroundMountAtMinLevel;

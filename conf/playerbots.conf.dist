@@ -638,6 +638,21 @@ Playerbots.AutoGearQualityLimit = 3
 # Default: 0 (no limit)
 Playerbots.AutoGearScoreLimit = 0
 
+# Non-GM players can only gear bots up to their own gear with the autogear command.
+# The commanding player's average item level (computed as for 'autogear match') becomes the item level
+# ceiling for every form of the command: 'autogear' and 'autogear reset' behave like 'autogear match',
+# a quality word or a lower item level number can still be used to ask for less, and a higher number is
+# clamped. 'autogear bis' is refused. AutoGearScoreLimit still applies on top. GM accounts are not affected.
+# Default: 0 (disabled, non-GM players can use every form of the autogear command)
+Playerbots.AutoGearMatchOnly = 0
+
+# Non-GM players cannot autogear bots to a higher quality than the best item they have equipped themselves
+# (e.g. a player wearing rare items at most gets bots in rare items). AutoGearQualityLimit still applies on
+# top. 'autogear bis' is refused. Works on its own or together with AutoGearMatchOnly. GM accounts are not
+# affected.
+# Default: 0 (disabled, quality is limited by AutoGearQualityLimit only)
+Playerbots.AutoGearMatchQuality = 0
+
 # Enable/Disable cheats for bots
 # "food" (bots eat or drink without using food or drinks from their inventory)
 # "gold" (bots have infinite gold)

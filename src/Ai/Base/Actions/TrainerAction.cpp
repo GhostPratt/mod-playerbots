@@ -286,6 +286,46 @@ bool MaintenanceAction::Execute(Event /*event*/)
     return true;
 }
 
+static uint32 GetWornItemLevelAverage(Player* player)
+{
+    uint32 sumLevel = 0;
+    uint32 count = 0;
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+    {
+        if (slot == EQUIPMENT_SLOT_BODY || slot == EQUIPMENT_SLOT_TABARD)
+            continue;
+
+        if (Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+        {
+            sumLevel += item->GetTemplate()->ItemLevel;
+            ++count;
+        }
+    }
+
+    return count ? sumLevel / count : 0;
+}
+
+static uint32 GetWornBestQuality(Player* player)
+{
+    uint32 best = ITEM_QUALITY_POOR;
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+    {
+        if (slot == EQUIPMENT_SLOT_BODY || slot == EQUIPMENT_SLOT_TABARD)
+            continue;
+
+        if (Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+            best = std::max<uint32>(best, item->GetTemplate()->Quality);
+    }
+
+    return best;
+}
+
+// AutoGearMatchOnly / AutoGearMatchQuality restrict non-GM players only.
+static bool IsAutoGearRestricted(Player* master)
+{
+    return !master || !master->GetSession() || master->GetSession()->GetSecurity() <= SEC_PLAYER;
+}
+
 bool BisGearAction::RunAutogearFallback(uint16 effectiveIlvl)
 {
     if (!sPlayerbotAIConfig.AutoGearCommand)
@@ -324,6 +364,16 @@ bool BisGearAction::Execute(Event event)
     {
         botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
             "bis_altbot_refused_error", "You cannot use bis on alt bots.", {}));
+        return false;
+    }
+
+    // BiS sets ignore the commanding player's gear, so they are off while autogear is held to it.
+    if ((sPlayerbotAIConfig.AutoGearMatchOnly || sPlayerbotAIConfig.AutoGearMatchQuality) &&
+        IsAutoGearRestricted(GetMaster()))
+    {
+        botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+            "bis_match_only_refused_error", "bis is not allowed, I can only match your gear. Use autogear instead.",
+            {}));
         return false;
     }
 
@@ -547,25 +597,6 @@ bool RemoveGlyphAction::Execute(Event /*event*/)
     return true;
 }
 
-static uint32 GetWornItemLevelAverage(Player* player)
-{
-    uint32 sumLevel = 0;
-    uint32 count = 0;
-    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
-    {
-        if (slot == EQUIPMENT_SLOT_BODY || slot == EQUIPMENT_SLOT_TABARD)
-            continue;
-
-        if (Item* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
-        {
-            sumLevel += item->GetTemplate()->ItemLevel;
-            ++count;
-        }
-    }
-
-    return count ? sumLevel / count : 0;
-}
-
 bool AutoGearAction::Execute(Event event)
 {
     if (!sPlayerbotAIConfig.AutoGearCommand)
@@ -583,8 +614,37 @@ bool AutoGearAction::Execute(Event event)
         return false;
     }
 
-    uint32 const qualityCap = static_cast<uint32>(sPlayerbotAIConfig.AutoGearQualityLimit);
-    uint32 const ilvlCap = static_cast<uint32>(sPlayerbotAIConfig.AutoGearScoreLimit);  // 0 == no limit
+    uint32 qualityCap = static_cast<uint32>(sPlayerbotAIConfig.AutoGearQualityLimit);
+    uint32 ilvlCap = static_cast<uint32>(sPlayerbotAIConfig.AutoGearScoreLimit);  // 0 == no limit
+
+    // Non-GM players can be held to their own gear: its average item level and/or its best quality
+    // become the caps, so every form of the command below can only ask for that or less.
+    bool const matchOnly = sPlayerbotAIConfig.AutoGearMatchOnly;
+    bool const matchQuality = sPlayerbotAIConfig.AutoGearMatchQuality;
+    if ((matchOnly || matchQuality) && IsAutoGearRestricted(GetMaster()))
+    {
+        Player* master = GetMaster();
+        if (!master)
+        {
+            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+                "autogear_no_master_error", "I have no master to match gear with.", {}));
+            return false;
+        }
+
+        uint32 const masterIlvl = GetWornItemLevelAverage(master);
+        if (masterIlvl == 0)
+        {
+            botAI->TellError(PlayerbotTextMgr::instance().GetBotTextOrDefault(
+                "autogear_master_no_gear_error", "You have no gear equipped for me to match.", {}));
+            return false;
+        }
+
+        if (matchOnly)
+            ilvlCap = (ilvlCap == 0) ? masterIlvl : std::min(ilvlCap, masterIlvl);
+
+        if (matchQuality)
+            qualityCap = std::min(qualityCap, std::max<uint32>(GetWornBestQuality(master), ITEM_QUALITY_NORMAL));
+    }
 
     uint32 quality = qualityCap;
     uint32 ilvl = ilvlCap;
